@@ -235,3 +235,62 @@ function askQuestion(userId, db, conversationHistory) {
 // Start the chat with a specific user ID
 // In a real application, you would get this from your authentication system
 chat('mongodb-user-123'); // Replace with actual user ID from your auth system
+
+// Add Express.js imports at the top
+import express from 'express';
+import cors from 'cors';
+
+// Create Express app
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// API endpoint for chat
+app.post('/chat', async (req, res) => {
+  try {
+    const { userId, message } = req.body;
+    const db = await connectToMongoDB();
+    let conversationHistory = await loadConversationHistory(userId, db);
+    
+    // Add user message to history
+    conversationHistory.push({
+      role: 'user',
+      parts: [{ text: message }]
+    });
+    
+    // Get AI response
+    const model = ai.getGenerativeModel({ 
+      model: modelName,
+      generationConfig: config.generationConfig
+    });
+    
+    const result = await model.generateContent({
+      contents: conversationHistory,
+      generationConfig: config.generationConfig
+    });
+    
+    const response = result.response.text();
+    
+    // Add AI response to history
+    conversationHistory.push({
+      role: 'model',
+      parts: [{ text: response }]
+    });
+    
+    // Save updated history
+    await saveConversationHistory(userId, conversationHistory, db);
+    
+    res.json({ response });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Fashion Designer Chatbot API running on port ${PORT}`);
+});
