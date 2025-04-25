@@ -29,9 +29,9 @@ const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // Configure the model
 const modelName = 'gemini-2.0-flash';
 const config = {
-  temperature: 0.7,
+  temperature: 0.6,
   generationConfig: {
-    temperature: 0.7,
+    temperature: 0.6,
     topP: 0.95,
     topK: 64,
   },
