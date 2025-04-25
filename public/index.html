@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fashion Designer AI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .chat-container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background: #e3f2fd;
+            margin-left: 20%;
+        }
+        .ai-message {
+            background: #f5f5f5;
+            margin-right: 20%;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .media-preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>Fashion Designer AI</h2>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="input-container">
+            <input type="file" id="mediaInput" accept="image/*">
+            <button onclick="clearMedia()">Clear Media</button>
+        </div>
+        <div id="mediaPreview"></div>
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="Type your message...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const userId = 'test-user-' + Math.random().toString(36).substring(7);
+        let selectedFile = null;
+
+        document.getElementById('mediaInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                selectedFile = file;
+                const preview = document.getElementById('mediaPreview');
+                preview.innerHTML = '';
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.className = 'media-preview';
+                    preview.appendChild(img);
+                }
+            }
+        });
+
+        function clearMedia() {
+            selectedFile = null;
+            document.getElementById('mediaInput').value = '';
+            document.getElementById('mediaPreview').innerHTML = '';
+        }
+
+        function addMessage(text, isUser) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            messageDiv.textContent = text;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Update the sendMessage function
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message && !selectedFile) return;
+
+            addMessage(message, true);
+            messageInput.value = '';
+
+            try {
+                let url = '/chat';
+                let options = {
+                    method: 'POST',
+                    headers: {}
+                };
+
+                if (selectedFile) {
+                    const formData = new FormData();
+                    formData.append('userId', userId);
+                    formData.append('message', message || '');
+                    formData.append('image', selectedFile);
+                    url = '/chat-with-image';
+                    options.body = formData;
+                    addImagePreview(selectedFile);
+                } else {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify({
+                        userId: userId,
+                        message: message
+                    });
+                }
+
+                const response = await fetch(`http://localhost:3000${url}`, options);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                addMessage(data.response, false);
+                
+                if (selectedFile) {
+                    clearMedia();
+                }
+            } catch (error) {
+                console.error('Detailed error:', error);
+                addMessage(`Error: ${error.message}`, false);
+            }
+        }
+
+        // Add function to show image preview in chat
+        function addImagePreview(file) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const imagePreview = document.createElement('img');
+            imagePreview.src = URL.createObjectURL(file);
+            imagePreview.className = 'message user-message media-preview';
+            messagesDiv.appendChild(imagePreview);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        // Handle Enter key
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
