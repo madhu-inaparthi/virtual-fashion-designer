@@ -81,11 +81,14 @@ const PORT = 3000;
 // Middleware setup
 app.use(express.json());
 app.use(cors({
-    origin: ['http://127.0.0.1:5500', 'http://localhost:3000', 'http://localhost:5500', '*'],
+    origin: ['http://127.0.0.1:5500', 'http://localhost:3000', 'http://127.0.0.1:5501', 'https://equal-cristy-madhukiran-6b9e128e.koyeb.app'],
     methods: ['GET', 'POST', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Add OPTIONS handler for preflight requests
+app.options('*', cors());
 
 // Initialize AI and configuration
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
