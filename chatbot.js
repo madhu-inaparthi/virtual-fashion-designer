@@ -81,16 +81,17 @@ const PORT = 3000;
 // Middleware setup
 app.use(express.json());
 app.use(cors({
-    origin: ['http://127.0.0.1:5500', 'http://localhost:3000'],
-    methods: ['GET', 'POST']
+    origin: ['http://127.0.0.1:5500', 'http://localhost:3000', 'http://localhost:5500', '*'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Initialize AI and configuration
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const modelName = 'gemini-2.0-flash';
-const visionModelName = 'gemini-2.0-flash';
 const config = {
-    temperature: 0.6,
+    temperature: 0.4,
     topP: 1,
     topK: 32,
     maxOutputTokens: 4096,
@@ -110,80 +111,53 @@ const upload = multer({
     }
 });
 
-// Chat endpoint
-app.post('/chat', async (req, res) => {
-    try {
-        const { userId, message } = req.body;
-        if (!userId || !message) {
-            return res.status(400).json({ error: 'Missing userId or message' });
-        }
-
-        const db = await connectToMongoDB();
-        let conversationHistory = await loadConversationHistory(userId, db);
-        
-        const model = ai.getGenerativeModel({ 
-            model: modelName,
-            generationConfig: config
-        });
-        
-        const result = await model.generateContent({
-            contents: [
-                ...conversationHistory,
-                { role: 'user', parts: [{ text: message }] }
-            ]
-        });
-        
-        const response = result.response.text();
-        
-        conversationHistory.push(
-            { role: 'user', parts: [{ text: message }] },
-            { role: 'model', parts: [{ text: response }] }
-        );
-        
-        await saveConversationHistory(userId, conversationHistory, db);
-        res.json({ response });
-    } catch (error) {
-        console.error('Detailed error:', error);
-        res.status(500).json({ 
-            error: 'Internal server error',
-            message: error.message 
-        });
-    }
-});
-
-// Image chat endpoint
-app.post('/chat-with-image', upload.single('image'), async (req, res) => {
+// Unified chat endpoint for text and image
+app.post('/chat', upload.single('image'), async (req, res) => {
     try {
         const { userId, message } = req.body;
         const imageFile = req.file;
-        
-        if (!imageFile) {
-            return res.status(400).json({ error: 'No image file provided' });
+
+        if (!userId || (!message && !imageFile)) {
+            return res.status(400).json({ error: 'Missing userId or message/image' });
         }
 
         const db = await connectToMongoDB();
         let conversationHistory = await loadConversationHistory(userId, db);
 
-        const model = ai.getGenerativeModel({ model: visionModelName });
+        // Ensure the system prompt is included in the conversation history
+        if (conversationHistory.length === 0) {
+            conversationHistory.push({
+                role: 'system',
+                parts: [{ text: SYSTEM_PROMPT }]
+            });
+        }
 
-        const parts = [
-            { text: message || "Please analyze this outfit and provide feedback" },
-            {
+        const model = ai.getGenerativeModel({ 
+            model: modelName,  // Use the same model for both text and image
+            generationConfig: config
+        });
+
+        const parts = [];
+        if (message) {
+            parts.push({ text: message });
+        }
+        if (imageFile) {
+            parts.push({
                 inlineData: {
                     mimeType: imageFile.mimetype,
                     data: imageFile.buffer.toString('base64')
                 }
-            }
-        ];
+            });
+        }
 
         const result = await model.generateContent({
-            contents: [{ role: 'user', parts }]
+            contents: [...conversationHistory, { role: 'user', parts }]
         });
 
         const response = await result.response.text();
 
         conversationHistory.push(
-            { role: 'user', parts: [{ text: message || "Please analyze this outfit and provide feedback" }] },
+            { role: 'user', parts },
             { role: 'model', parts: [{ text: response }] }
         );
 
@@ -199,9 +173,23 @@ app.post('/chat-with-image', upload.single('image'), async (req, res) => {
 });
 
 // Serve static files
-app.use(express.static('public'));
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Add OPTIONS handler for preflight requests
+app.options('*', cors());
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Add a route for the root URL to serve index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });

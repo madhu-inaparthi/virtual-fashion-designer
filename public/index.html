@@ -126,33 +126,32 @@
             messageInput.value = '';
 
             try {
-                let url = '/chat';
-                let options = {
-                    method: 'POST',
-                    headers: {}
-                };
-
+                const formData = new FormData();
+                formData.append('userId', userId);
+                formData.append('message', message || '');
                 if (selectedFile) {
-                    const formData = new FormData();
-                    formData.append('userId', userId);
-                    formData.append('message', message || '');
                     formData.append('image', selectedFile);
-                    url = '/chat-with-image';
-                    options.body = formData;
                     addImagePreview(selectedFile);
-                } else {
-                    options.headers['Content-Type'] = 'application/json';
-                    options.body = JSON.stringify({
-                        userId: userId,
-                        message: message
-                    });
                 }
 
-                const response = await fetch(`http://localhost:3000${url}`, options);
+                // Use the full URL with the correct port
+                const response = await fetch('http://localhost:3000/chat', {
+                    method: 'POST',
+                    body: formData,
+                    // Don't set Content-Type header when using FormData
+                    // The browser will set it automatically with the correct boundary
+                });
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    const errorText = await response.text();
+                    let errorMessage;
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+                    } catch (e) {
+                        errorMessage = `HTTP error! status: ${response.status}: ${errorText}`;
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 const data = await response.json();
