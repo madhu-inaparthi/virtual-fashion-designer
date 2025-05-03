@@ -1,13 +1,8 @@
-// To run this code you need to install the following dependencies:
-// npm install @google/generative-ai readline dotenv
-// npm install -D @types/node
-
-// Import statements should be at the top
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import readline from 'readline';
 import dotenv from 'dotenv';
 import express from 'express';
-import cors from 'cors';
+// Removed cors import
 import multer from 'multer';
 import { MongoClient } from 'mongodb';
 import path from 'path';
@@ -80,15 +75,17 @@ const PORT = 3000;
 
 // Middleware setup
 app.use(express.json());
-app.use(cors({
-    origin: ['http://127.0.0.1:5500', 'http://localhost:3000', 'http://127.0.0.1:5501', 'https://equal-cristy-madhukiran-6b9e128e.koyeb.app'],
-    methods: ['GET', 'POST', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
 
-// Add OPTIONS handler for preflight requests
-app.options('*', cors());
+// Removed CORS middleware
+// app.use(cors({
+//     origin: '*',  // Allow all origins for development
+//     methods: ['GET', 'POST', 'OPTIONS'],
+//     credentials: true,
+//     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With']
+// }));
+
+// Removed OPTIONS handler for preflight requests
+// app.options('*', cors());
 
 // Initialize AI and configuration
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -181,9 +178,6 @@ import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// Add OPTIONS handler for preflight requests
-app.options('*', cors());
 
 app.use(express.static(path.join(__dirname, 'public')));
 
