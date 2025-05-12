@@ -85,6 +85,12 @@
         const userId = 'test-user-' + Math.random().toString(36).substring(7);
         let selectedFile = null;
 
+        // Determine API URL based on environment
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const API_URL = isLocalhost
+            ? 'http://localhost:3000/chat'
+            : 'https://equal-cristy-madhukiran-6b9e128e.koyeb.app/chat';
+
         document.getElementById('mediaInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -119,7 +125,7 @@
         async function sendMessage() {
             const messageInput = document.getElementById('messageInput');
             const message = messageInput.value.trim();
-            
+
             if (!message && !selectedFile) return;
 
             addMessage(message, true);
@@ -134,10 +140,11 @@
                     addImagePreview(selectedFile);
                 }
 
-                // Use the full URL with the correct port
-                const response = await fetch('http://localhost:3000/chat', {
+                // Use the dynamic API URL
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     body: formData,
+                    credentials: 'include',
                     // Don't set Content-Type header when using FormData
                 });
 
@@ -155,7 +162,7 @@
 
                 const data = await response.json();
                 addMessage(data.response, false);
-                
+
                 if (selectedFile) {
                     clearMedia();
                 }
