@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import readline from 'readline';
 import dotenv from 'dotenv';
 import express from 'express';
+import cors from 'cors';
 import multer from 'multer';
 import { MongoClient } from 'mongodb';
 import path from 'path';
@@ -72,20 +73,21 @@ async function saveConversationHistory(userId, history, db) {
 
 // Initialize Express app
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware setup
 app.use(express.json());
 
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://tangerine-scone-7cf83d.netlify.app/');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
+// Configure CORS
+const corsOptions = {
+    origin: ['https://tangerine-scone-7cf83d.netlify.app', 'http://localhost:3000', 'http://localhost:8080'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const modelName = 'gemini-2.0-flash';
